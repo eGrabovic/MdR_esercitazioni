@@ -65,4 +65,5 @@ EEZ = G(3,1).*EEX + G(3,2).*EEY + G(3,3).*EEZ + G(3,4);
 surf(EEX, EEY, EEZ, 'facecolor', '#4DBEEE', 'edgecolor', 'none', 'parent', transforms{i});
 patch(EEX(1,:), EEY(1,:), EEZ(1,:),'facecolor', '#4DBEEE', 'parent', transforms{i});
 patch(EEX(2,:), EEY(2,:), EEZ(2,:),'facecolor', '#4DBEEE', 'parent', transforms{i});
+
 end

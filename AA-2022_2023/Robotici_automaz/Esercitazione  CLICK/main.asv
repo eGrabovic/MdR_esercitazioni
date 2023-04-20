@@ -338,7 +338,8 @@ zlabel('z')
 set(gca, 'zlim', [0 1]);
 set(gca, 'xlim', [-0.7 0.7]);
 set(gca, 'ylim', [-0.7 0.7]);
-set(gca, 'box', 'on')%% animation
+set(gca, 'box', 'on')
+%% animation
 tracked_line = line(nan(1, size(qsol, 2)),nan(1, size(qsol, 2)),nan(1, size(qsol, 2)), 'color', 'g', 'linewidth', 1.4);
 for j = 1:size(qsol, 2)
     

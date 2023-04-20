@@ -3,12 +3,13 @@ function updatePlot_localPOE(Glocal, q, transforms)
 %
 %
 
-Glocalnum = full(Glocal(q));
-Glocalnum = reshape(Glocalnum, 4, 4, length(q));
+Glocalnum = cell(1, length(q));
+[Glocalnum{:}] = Glocal(q);
+Glocalnum = cellfun(@full, Glocalnum, 'UniformOutput',false);
 
 for i = 1:length(q)
    
-    transforms{i}.Matrix = Glocalnum(:,:,i);
+    transforms{i}.Matrix = Glocalnum{i};
     
 end
 

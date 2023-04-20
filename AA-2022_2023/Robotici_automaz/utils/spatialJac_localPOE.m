@@ -9,10 +9,10 @@ arguments
     options.EEoffset = eye(4);
 end
 
+n = length(q);
 EEoffset = options.EEoffset;
 Goffset{end} = Goffset{end}*EEoffset;
 X(:, end) = adjoint(EEoffset)*X(:, end);
-n = length(q);
 J = zeros(6, n, class(q(1)));
 B = eye(4);
 

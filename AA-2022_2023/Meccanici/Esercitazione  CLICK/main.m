@@ -183,6 +183,7 @@ xlabel('$t$ (s)');
 ylabel('$\omega_z$ (m/s)');
 set(findall(gcf,'-property','FontSize'),'FontSize',22)
 sgtitle('Reference signals')
+
 %% redundant robot parametrization
 
 % robot KUKA 9R

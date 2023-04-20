@@ -1,4 +1,4 @@
-function [Gglobal, Glocals] = FWkin_localPOE(Goffset, X, q, options)
+function [Gglobal, Grel] = FWkin_localPOE(Goffset, X, q, options)
 %
 % inputs: Goffset: 1xn cell of 4x4 offset matrices 
 %
@@ -10,7 +10,7 @@ function [Gglobal, Glocals] = FWkin_localPOE(Goffset, X, q, options)
 %                             kinematic computation
 %
 % outputs the forward kinematics with local POE formulation and each local
-% transforms
+% relative transforms
 
 arguments
     Goffset
@@ -18,18 +18,18 @@ arguments
     q
     options.jstart = 1
     options.jend = length(q)
+    options.EEoffset = eye(4);
 end
 
 jstart = options.jstart;
 jend = options.jend;
 
-Glocals = cell(1, jend);
+Grel = cell(1, jend);
 Gglobal = eye(4);
 
 for i = jstart:jend
-    Glocals{i} = Goffset{i}*expTw(X(:, i), q(i));
-    Gglobal = Gglobal*Glocals{i};
+    Grel{i} = Goffset{i}*expTw(X(:, i), q(i));
+    Gglobal = Gglobal*Grel{i};
 end
-
-
+Gglobal = Gglobal*options.EEoffset;
 end
