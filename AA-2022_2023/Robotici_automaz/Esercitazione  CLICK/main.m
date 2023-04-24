@@ -6,43 +6,11 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex'); 
 set(0,'defaultTextInterpreter','latex');
 
-%% creazione punti scritta
-% % read image and convert to grayscale matrix
-% I = rgb2gray(imread('Scritta.png'));
-% % h = ones(3,3)/10;
-% % I = imfilter(I,h); % filter image for smoother contour
-% 
-% % extract contour from image
-% [C,h] = imcontour(flipud(I), 1);
-% X = C(1,:);
-% Y = C(2,:);
-% 
-% figure; hold on; axis equal;
-% plot(X, Y);
-% 
-% % remove contiguous points that are too far apart from each other (contour noise)
-% [X, Y, k] = remove_noise(X, Y);
-% 
-% 
-% % center image around center of gravity
-% xm = mean(X); ym = mean(Y);
-% X = X-xm;
-% Y = Y-ym;
-% 
-% % close the loop (last point = initial point)
-% X(end+1) = X(1);
-% Y(end+1) = Y(1);
-% 
-% % interpolation and equispacing of points 
-% P =  interparc(2000, X, Y, 'linear').';
-% X = P(1,2:end);
-% Y = P(2,2:end);
-% figure; hold on; axis equal;
-% plot(X, Y);
-% 
-% % save coordinates to avoid recalculating 
-% save('coordinateX_scritta.mat', 'X')
-% save('coordinateY_scritta.mat', 'Y')
+clc; clear all;
+
+addpath(genpath('../graphics'))
+addpath(genpath('../utils'))
+addpath('Data')
 
 %% definizione task
 
@@ -50,7 +18,7 @@ set(0,'defaultTextInterpreter','latex');
 load('coordinateX_scritta.mat'); % variabile X
 load('coordinateY_scritta.mat'); % variabile Y
 
-m = 128;  % number of DFT coefficients
+m = 100;  % number of DFT coefficients
 
 % discrete Fourier transform
 pk = DFT_vec([X;Y], m);
@@ -64,8 +32,14 @@ alpha = linspace(0,2*pi,Nd); % discretized time period
 
 norm_pk = vecnorm(pk, 2, 1);
 [norm_pk, idorder] = sort(norm_pk, 'descend');
-
 %% animation of the curve
+% Nd = 2000; % number of sampling points
+% 
+% alpha = linspace(0,2*pi,Nd); % discretized time period
+% 
+% norm_pk = vecnorm(pk, 2, 1);
+% [norm_pk, idorder] = sort(norm_pk, 'descend');
+% 
 % figure; hold on; axis equal
 % pl = plot(nan(1,Nd), nan(1,Nd));
 % 
@@ -73,8 +47,6 @@ norm_pk = vecnorm(pk, 2, 1);
 % for i = 1:length(pk)
 %    pl_k(i) =  plot(nan(1,2), nan(1,2), 'color', 'k', 'linewidth', 1.4);
 % end
-% 
-% 
 % 
 % for i = 1:Nd
 %     
@@ -92,12 +64,12 @@ norm_pk = vecnorm(pk, 2, 1);
 %% Task trajectory calculation 
 import casadi.*
 boardOrigin = [0.35;0;0.5];         % center of the writing board
-t = SX.sym('t');                    % symbolic variable for time
+t = SX.sym('t', 1, 1);                    % symbolic variable for time
 ti = 0;                             % initial time
 tf = 30;                            % final time
 alpha = (t-ti)./(tf-ti).*2*pi;      % scaling of the Fourier transofrm period
-pt_expr = IFST(alpha, pk, m, idorder).*0.0015;
-pt_expr = Ttransl(boardOrigin)*TrotY(-pi/2)*TrotZ(3*pi/2)*vertcat(pt_expr, 0, 1);
+pt_expr = IFST(alpha, pk, m, idorder).*0.0015; % scaling factor to resize the writing
+pt_expr = Ttransl(boardOrigin)*TrotY(-pi/2)*TrotZ(3*pi/2)*vertcat(pt_expr, 0, 1); % re-orienting the writing on the board
 pt_fun = Function('pt', {t}, {pt_expr});
 writing_pts = nan(4, Nd);
 t_num = linspace(ti, tf, Nd);
@@ -108,7 +80,7 @@ end
 %% calcolo del twist task
 import casadi.*
 % velocità lineare 
-v_expr = jacobian(pt_expr, t);
+v_expr = jacobian(pt_expr, t); % der_pd/der_t
 
 orientation_type = 1;
 
@@ -146,37 +118,41 @@ end
 
 T_expr = [R_expr, pt_expr(1:3); 0 0 0 1];
 
-twist_expr = vecForm(reshape(jacobian(T_expr, t), 4, 4)*rigidInverse(T_expr));
+omega_expr = vecForm(  reshape(jacobian(R_expr, t), 3, 3) * (R_expr.')  );
+
+twist_expr = vertcat(v_expr(1:3), omega_expr);
 
 twist_fun = Function('twist', {t}, {twist_expr});
 
 T_fun = Function('twist', {t}, {T_expr});
 
-twist_num = full(twist_fun(linspace(ti, tf, Nd)));
+t_num = linspace(ti, tf, Nd);
+twist_num = full(twist_fun(t_num));
+
 
 figure('color', 'w')
 ax = subplot(2,3,1);
-plot(ax, twist_num(1,:))
+plot(ax, t_num, twist_num(1,:))
 xlabel('$t$ (s)');
 ylabel('$v_x$ (m/s)');
 ax = subplot(2,3,2);
-plot(ax, twist_num(2,:))
+plot(ax, t_num, twist_num(2,:))
 xlabel('$t$ (s)');
 ylabel('$v_y$ (m/s)');
 ax = subplot(2,3,3);
-plot(ax, twist_num(3,:))
+plot(ax, t_num, twist_num(3,:))
 xlabel('$t$ (s)');
 ylabel('$v_z$ (m/s)');
 ax = subplot(2,3,4);
-plot(ax, twist_num(4,:))
+plot(ax, t_num, twist_num(4,:))
 xlabel('$t$ (s)');
 ylabel('$\omega_x$ (m/s)');
 ax = subplot(2,3,5);
-plot(ax, twist_num(5,:))
+plot(ax, t_num, twist_num(5,:))
 xlabel('$t$ (s)');
 ylabel('$\omega_y$ (m/s)');
 ax = subplot(2,3,6);
-plot(ax, twist_num(6,:))
+plot(ax, t_num, twist_num(6,:))
 xlabel('$t$ (s)');
 ylabel('$\omega_z$ (m/s)');
 set(findall(gcf,'-property','FontSize'),'FontSize',22)
@@ -184,16 +160,16 @@ sgtitle('Reference signals')
 
 %% redundant robot parametrization
 
-% robot KUKA 9R
-
+% robot 9R
 nj = 9; % number of joints
-d = 0.1;
+d = 0.10;
 z = repmat(d, 1, nj);
 z(1) = 0;
 
 % creation of offset transformations
 g0 = cell(1,nj);
 X = zeros(6, nj);
+Jtype(1:nj) = 'R';
 for ii = 1:nj
     
    g0{ii} = Ttz(z(ii));
@@ -204,18 +180,23 @@ for ii = 1:nj
    end
     
 end
+% Jtype(1) = 'P';
+% X(:, 1) = [0;0;1;0;0;0];
 g0{ii+1} = eye(4); % placeholder transform for graphical purposes (E-E drawing)
 
 import casadi.*
 q = casadi.SX.sym('q', nj, 1);  % symbolic variables initialization 
-Toffset0 = eye(4);
+Toffset0 = eye(4);%Ttz(1)*TrotX(pi);
 ToffsetE = Ttz(0.08);
-[Gglobal, Grel] = FWkin_localPOE(g0, X, q);
-Gglobal = Gglobal*ToffsetE;
-Jac_expr = spatialJac_localPOE(g0, X, q, 'EEoffset', ToffsetE);
+[G0E, Grel] = FWkin_localPOE(g0, X, q);
+G0E = Toffset0*G0E*ToffsetE;
+Grel{1} = Toffset0*Grel{1};
+Jac_expr = spatialJac_localPOE(g0, X, q, 'EEoffset', ToffsetE, 'Toffset0', Toffset0);
+
+Jac_expr = twistPole(-G0E(1:3, 4))*Jac_expr;
 
 % build functions from symbolic expressions
-T0E_fun = Function('T0E', {q}, {Gglobal});
+T0E_fun = Function('T0E', {q}, {G0E});
 Tj_fun = Function('Tj', {q}, {Grel{:}});
 Jac_fun = Function('Jac', {q}, {Jac_expr});
 
@@ -229,25 +210,25 @@ K = [SX.eye(3).*Kp, SX(3,3); SX(3,3), SX.eye(3).*Ko];
 
 % orientation error with quaternion   CTRL + R comment highlighted code ; CTRL + T un-comment highlighted code
 [nT, thetaT] = rotToAxisAngle(R_expr);
-[nE, thetaE] = rotToAxisAngle(Gglobal(1:3, 1:3));
+[nE, thetaE] = rotToAxisAngle(G0E(1:3, 1:3));
 Qt = axisAngleToQuat(thetaT, nT);
 QE = axisAngleToQuat(thetaE, nE);
 
 e_o = OerrorFromQuat(Qt, QE);
 
 % orientation error with vecForm of skew sym matrix
-% Rtilde = R_expr*T0E(1:3, 1:3).';
+% Rtilde = R_expr*G0E(1:3, 1:3).';
 % e_o = vecForm(Rtilde - Rtilde')./2;
 
 % positional error
-e_p = T_expr(1:3, 4)-Gglobal(1:3, 4);
+e_p = T_expr(1:3, 4)-G0E(1:3, 4);
 
 % error vector
 e = [e_p; e_o];
 
 e_fun = Function('err', {t, q}, {e});
 
-L = twistRefCLIK(T_expr, Gglobal);
+L = twistRefCLIK(T_expr, G0E);
 
 I = SX.eye(3);
 O = SX(3,3);
@@ -280,7 +261,7 @@ gradH = jacobian(H,q)';
 
 % minimum norm solution weights
 weights = 2*nj:-2:1;
-weights(end) = 0.001;
+weights(end) = 0.1;
 weights = weights./sum(weights);
 q0dot = 2'.*gradH;
 [Jr, b] = redundantInverseKin(Jac_expr, weights, q0dot);
@@ -296,18 +277,15 @@ t0 = ti;
 tend = tf;
 
 % set the initial configuration of the manipulator
-q0 = pi/4+zeros(nj, 1);
-q0(1) = -pi/2;
+q0 = pi/6+zeros(nj, 1);
 q0(2) = -pi/4;
-q0(4) = pi/4;
-q0(6) = pi/4;
-q0(8) = pi/4;
+
 qsol = RK4(q, [], qdot_expr, dt, tend, q0, t0, [], 't_expr', t);
 
 %% graphics
 
 % manipulator graphics enclosed inside this function
-[ax, transforms] = plotRobot_localPOE(Tj_fun, g0, X, q0);
+[ax, transforms] = plotRobot_localPOE(Tj_fun, g0, X, q0, Jtype);
 
 
 % ground graphics
@@ -338,11 +316,13 @@ zlabel('z')
 set(gca, 'zlim', [0 1]);
 set(gca, 'xlim', [-0.7 0.7]);
 set(gca, 'ylim', [-0.7 0.7]);
-set(gca, 'box', 'on')%% animation
+set(gca, 'box', 'on')
+
+%% animation
 tracked_line = line(nan(1, size(qsol, 2)),nan(1, size(qsol, 2)),nan(1, size(qsol, 2)), 'color', 'g', 'linewidth', 1.4);
-for j = 1:size(qsol, 2)
+for j = 1:1:size(qsol, 2)
     
-    updatePlot_localPOE(Tj_fun, qsol(1:nj, j), transforms);
+   updatePlot_localPOE(Tj_fun, qsol(1:nj, j), transforms);
    T0E_num = full(T0E_fun(qsol(1:nj, j)));           % compute E-E matrix
    task_transform.Matrix = full(T_fun(qsol(end, j)));% update task frame graphics
 

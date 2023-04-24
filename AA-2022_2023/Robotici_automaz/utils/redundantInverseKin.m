@@ -7,15 +7,13 @@ function [Jr, b] = redundantInverseKin(J, w, q0_dot)
 %
 % INPUTS: - J redundant robot jacobian
 %         - w weight vector (weights for q_dot, we chose which joint velocities we want to minimize more)
-%         - gradH objective function gradient to follow a reference (desired)  trajectory
-%           defined by q0_dot
-%         - k0 scaling coefficient for the objective H
+%         - q0_dot desired reference joint trajectory
 
 Winv = diag(1./w);
 JT = J.';
-Jr = Winv*JT*inv(J*Winv*JT);
-JrJ = Jr*J;
-P = eye(size(JrJ, 1)) - JrJ;
+Jr = Winv*JT*inv(J*Winv*JT); % pseudoinverse
+JrJ = Jr*J; % sub-common expression
+P = eye(size(JrJ, 1)) - JrJ; % null projector
 b = P*q0_dot; % null projection of q0_dot
 
 end

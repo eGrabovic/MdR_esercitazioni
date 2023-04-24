@@ -1,4 +1,4 @@
-function [Gglobal, Grel] = FWkin_localPOE(Goffset, X, q, options)
+function [G0E, Grel] = FWkin_localPOE(Goffset, X, q, options)
 %
 % inputs: Goffset: 1xn cell of 4x4 offset matrices 
 %
@@ -25,11 +25,11 @@ jstart = options.jstart;
 jend = options.jend;
 
 Grel = cell(1, jend);
-Gglobal = eye(4);
+G0E = eye(4);
 
 for i = jstart:jend
     Grel{i} = Goffset{i}*expTw(X(:, i), q(i));
-    Gglobal = Gglobal*Grel{i};
+    G0E = G0E*Grel{i};
 end
-Gglobal = Gglobal*options.EEoffset;
+G0E = G0E*options.EEoffset;
 end

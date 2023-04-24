@@ -1,4 +1,4 @@
-function [ax, transforms] = plotRobot_localPOE(Glocal, G0, X, q)
+function [ax, transforms] = plotRobot_localPOE(G0E, G0, X, q, Jtype, options)
 % [ax, transforms] = plotRobot_localPOE(Glocal, G0, X, q)
 % starts a graphics scene with a serial robot manipulator 
 %
@@ -18,19 +18,30 @@ function [ax, transforms] = plotRobot_localPOE(Glocal, G0, X, q)
 %         -) transforms: handle for hgtransforms (matlab graphical tool to
 %              manage homogeneous transformations between graphical objects)
 
+arguments
+    G0E
+    G0
+    X
+    q
+    Jtype
+    options.jointradius = 0.03;
+    options.jointlength = 0.08;
+end
+
 figure; hold on; axis equal; box on; grid on;
 ax = gca;  % get current axes
 
 G = eye(4);
 transforms = cell(1, length(q));
 Glocalnum = cell(1, length(q));
-[Glocalnum{:}] = Glocal(q);
+[Glocalnum{:}] = G0E(q);
 Glocalnum = cellfun(@full, Glocalnum, 'UniformOutput',false);
 
 parent = ax;
 for i = 1:length(q)
     
     transforms{i} = hgtransform('parent', parent);
+    parentPrev = parent;
     parent = transforms{i};
     
     transforms{i}.Matrix = Glocalnum{i};
@@ -42,13 +53,20 @@ for i = 1:length(q)
     G = G*Glocalnum{i};
     
     % geometric primitives
-    [jointX, jointY, jointZ] = createCylinder(0.04, 0.04, 0.04, X(4:6, i), 0);
-    [linkX, linkY, linkZ] = createCylinder(0.02, 0, -norm(P2-P1), (P2 - P1)./norm(P2-P1), 0);
-    
-    % plot joint
-    surf(jointX, jointY, jointZ, 'facecolor', 'r', 'edgecolor', 'none', 'parent', transforms{i});
-    fill3(jointX(1,:), jointY(1,:),  jointZ(1,:), 'r', 'parent', transforms{i});
-    fill3(jointX(2,:), jointY(2,:),  jointZ(2,:), 'r', 'parent', transforms{i});
+    if strcmpi(Jtype(i) , 'R')
+        [jointX, jointY, jointZ] = createCylinder(options.jointradius, options.jointlength/2, options.jointlength/2, X(4:6, i), 0);
+        % plot joint
+        surf(jointX, jointY, jointZ, 'facecolor', 'r', 'edgecolor', 'none', 'parent', transforms{i});
+        fill3(jointX(1,:), jointY(1,:),  jointZ(1,:), 'r', 'parent', transforms{i});
+        fill3(jointX(2,:), jointY(2,:),  jointZ(2,:), 'r', 'parent', transforms{i});
+        
+        [linkX, linkY, linkZ] = createCylinder(options.jointradius/2, 0, -norm(P2-P1), (P2 - P1)./norm(P2-P1), 0);
+    elseif strcmpi(Jtype(i) , 'P')
+        [ptsP, faces] = createParallelepiped(options.jointradius, [options.jointlength*1.5 options.jointlength*1.5], X(1:3, i), 0);
+        patch('faces', faces, 'vertices', ptsP.',  'facecolor', 'green', 'Parent', parentPrev);
+        
+        [linkX, linkY, linkZ] = createCylinder(options.jointradius/2, norm(P2-P1)-0.5, -norm(P2-P1), (P2 - P1)./norm(P2-P1), 0);
+    end
     
     %plot link
     surf(linkX, linkY, linkZ, 'facecolor', 'b', 'edgecolor', 'none', 'parent', transforms{i});
@@ -57,7 +75,7 @@ for i = 1:length(q)
 end
 
 % plot end effector
-[EEX, EEY, EEZ] = createCylinder(0.015, 0.15/2, 0.15/2, [0;0;1], 0);
+[EEX, EEY, EEZ] = createCylinder(options.jointradius/3, 0.08, 0, [0;0;1], 0);
 G = G0{end};
 EEX = G(1,1).*EEX + G(1,2).*EEY + G(1,3).*EEZ + G(1,4);
 EEY = G(2,1).*EEX + G(2,2).*EEY + G(2,3).*EEZ + G(2,4);

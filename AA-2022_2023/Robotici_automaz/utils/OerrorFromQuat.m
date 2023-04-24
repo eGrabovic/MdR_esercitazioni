@@ -8,5 +8,5 @@ pvecT = Qtask(2:4);
 p0E = QEE(1);
 pvecE = QEE(2:4);
 
-e_o = -p0T.*pvecE + p0E.*pvecT - hat(pvecT)*pvecE;
+e_o = -p0T.*pvecE + p0E.*pvecT - hat(pvecT)*pvecE; % vec part of the spatial representation of orientation between task and EE
 end

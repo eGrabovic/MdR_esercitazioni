@@ -47,7 +47,7 @@ import casadi.*
 % velocità lineare 
 v_expr = jacobian(pt_expr, t);
 
-orientation_type = 2;
+orientation_type = 1;
 
 if orientation_type == 1
     % % % ORIENTAZIONE OPZIONE 1 % % %

@@ -289,7 +289,7 @@ gradH = jacobian(H,q)';
 
 % minimum norm solution weights
 weights = 2*nj:-2:1;
-weights(end) = 0.001;
+% weights(end) = 0.001;
 weights = weights./sum(weights);
 q0dot = 2'.*gradH;
 [Jr, b] = redundantInverseKin(Jac, weights, q0dot);

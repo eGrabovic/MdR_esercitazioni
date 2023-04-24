@@ -208,7 +208,8 @@ LT = [I, O;...
 radius_sphere = 0.1;
 center_sphere = [0.1; -0.1; 0.3];
 p_robot = Toffset0*T0j{6}(1:4, 4);
-H = sum((p_robot(1:3) - center_sphere).^2); % ... + other joint collision checks and other collision spheres
+p_robot_2 = Toffset0*T0j{7}(1:4, 4);
+H = sum((p_robot(1:3) - center_sphere).^2) + sum((p_robot_2(1:3) - center_sphere).^2); % ... + other joint collision checks and other collision spheres
 
 % gradient of H
 gradH = jacobian(H,q)';
