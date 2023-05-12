@@ -7,13 +7,13 @@ function [B, C, G, B_dq] = stdDynFromDH(DH_table, Jtype_list, q, qdot, cg_list, 
 arguments
     DH_table
     Jtype_list
-    q % symbolic joint vector
-    qdot % joint velocities
+    q
+    qdot
     cg_list
     mass_list
-    inertia_list % cell of 3by3 inertia tensor
-    options.K = 0; % array of spring coefficients
-    options.q_eq = 0; % equilibrium q value (numerical) defining the rest configuration of the spring
+    inertia_list
+    options.K = 0;
+    options.q_eq = 0;
     options.gravity = [0;0;-9.81];
     options.baseOffset = eye(4);
     options.eeOffset = eye(4);
@@ -42,15 +42,15 @@ for j = 1:N
     Jv = Jac(1:3, :);
     Jw = Jac(4:6, :);
     B = B + mass_list(j).*Jv'*Jv + Jw'*inertia*Jw; % sommatoria di B_i
-    G = G - mass_list(j).*(Jv'*options.gravity);   % sommatoria di G_i
+    G = G - mass_list(j).*(Jv'*options.gravity);                                              % sommatoria di G_i
 end
 
 
-% calculation of dB/dq
 B_dq = cell(1, N);
+
 B_dq_sym = jacobian(B, q);
 for i = 1:N
-    B_dq{i} = reshape(B_dq_sym(:, i), N, N); %dB/dq_i
+    B_dq{i} = reshape(B_dq_sym(:, i), N, N);
 end
 
 G = G - options.K*(q-options.q_eq); % add elastic forces contribution
@@ -60,7 +60,7 @@ for i = 1:N
     for j = 1:N
         Bij_dqk = zeros(1, N, cl);
         for k = 1:N
-            Bij_dqk(k) = B_dq{k}(i, j); % extraction of elements from dB/dq
+            Bij_dqk(k) = B_dq{k}(i, j);
         end
         Bik_dqj = B_dq{j}(i, :);
         Bjk_dqi = B_dq{i}(j, :);

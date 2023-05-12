@@ -8,7 +8,6 @@ end
 cl = class(d);
 I = eye(3, cl);
 
-M = [I,            hat(d);...
-    zeros(3,3, cl), I];
-
+M = [            I, hat(d);...
+    zeros(3,3, cl),    I];
 end

@@ -13,7 +13,7 @@ end
 cl = class(g);
 O = zeros(3, 3 , cl);
 L = [R, O;...
-    O, R];
+     O, R];
 
 
 end

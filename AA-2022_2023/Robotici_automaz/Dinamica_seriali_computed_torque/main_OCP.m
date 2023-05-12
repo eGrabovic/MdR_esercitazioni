@@ -1,4 +1,4 @@
-%% esercitazione dinamica seriali: computed torque control
+%% esercitazione dinamica seriali: controllo ottimo
 clc; clear all;
 set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex'); 
@@ -51,7 +51,6 @@ cg_list = [
 
 cg_list = cg_list(:, 1:nj); % centro di massa w.r.t. to Oj (in {Sj})
 
-
 %% calcolo cinematica
 import casadi.*
 q = MX.sym('q', nj, 1);  % symbolic variables initialization
@@ -79,69 +78,146 @@ Jac_fun = Function('Jac', {q}, {Jac});
 %% calcolo matrici della dinamica forma standard
 [B, C, G, B_dq] = stdDynFromDH(DH_table, Jtype_list, q, qdot, cg_list, mass_list, inertia_list, 'baseOffset', Toffset0, 'eeOffset', ToffsetE, 'gravity', [0;0;-9.81]);
 
-% volendo potrei calcolare la dinamica di un sistema con incertezze sulle
-% inerzie per vedere come si comporta la legge computed torque
-% [B_real, C_real, G_real, B_dq_real] = stdDynFromDH(DH_table, Jtype_list, q, qdot, cg_list_real, mass_list_real, inertia_list_real, 'baseOffset', Toffset0, 'eeOffset', ToffsetE, 'gravity', [0;0;-9.81]);
-
 %% caricamento dei risultati della cinematica CLIK
 load('q_CLIK.mat'); % caricato nella variabile "qsol"
 t = qsol(end, :); % tempo
 qsol = qsol(1:end-1,:); % togliamo il tempo
 
-t_sym = casadi.MX.sym('t');
-q_des = casadi.MX(nj, 1);
-q_d_des = casadi.MX(nj, 1);
-q_dd_des = casadi.MX(nj, 1);
+% numero di passi
+N = length(qsol);
 
-% interpolazione con spline casadi (N.B. casadi.interpolant ha bisogno di adoperare variabili MX)
-
-for i = 1:nj
-    q_interp = casadi.interpolant('interp', 'bspline', {t}, qsol(i,:));
-    q_des(i) = q_interp(t_sym); % traiettoria desiderata
-    q_d_des(i) = jacobian(q_des(i), t_sym); % velocità desiderata
-    q_dd_des(i) = jacobian(q_d_des(i), t_sym); % accelerazione desiderata
+% calcolo delle matrici di trasformazione omogenee corrispondednti all' E-E
+% esse definiranno i "traguardi" che l'E-E dovrà rispettare (path constraints)
+% N.B. tali traguardi non hanno vincoli di tempo (non sono costretto a far svolgere il task in 30 s)
+T0E_path = reshape(full(T0E_fun(qsol)), 4, 4, []); % matrice 4x4xN 
+bata_path = nan(4, N);
+p_path = nan(3, N);
+for ii = 1:N
+    
+    [nT, thetaT] = rotToAxisAngle(T0E_path(1:3, 1:3));
+    beta_num(:, ii) = axisAngleToQuat(thetaT, nT);
+    d_num(:, ii) = T0E_path(1:3, 4);
+    
 end
 
-% creo funzioni dalle espressioni simboliche
-q_des_fun = casadi.Function('qd', {t_sym}, {q_des});
-q_d_des_fun = casadi.Function('qd_d', {t_sym}, {q_d_des});
-q_dd_des_fun = casadi.Function('qd_dd', {t_sym}, {q_dd_des});
-
-%% simulazione dinamica
+%% scrittura equazioni della dinamica e passo di integrazione
 % stati sistema
 s = [q; qdot];
+nx = nj*2;
 
 % ingressi sistema
-u = casadi.MX.sym('u', 6, 1);
+tau = casadi.MX.sym('tau', nj, 1);
+nu = nj;
 
-% computed torque
-omega_n = 10;
-Kp = eye(nj).*omega_n.^2;
-Kv = eye(nj).*2.*omega_n;
-tau = B*(q_dd_des - Kv*(qdot - q_d_des) - Kp*(q - q_des)) + C*qdot + G;
+% variabili algebriche
+h = casadi.MX.sym('h'); % passo di integrazione incognito (da determinare mediane l'algoritmo di ottimizzazione)
 
-tau_disturbed = B*(q_dd_des - Kv*(qdot - q_d_des) - Kp*(q - q_des)) + C*qdot + G + Jac'*u;
+beta_path = casadi.MX.sym('R', 4, 1);
+d_path = casadi.MX.sym('d', 3, 1);
 
-tau_fun = casadi.Function('tau', {t_sym, q, qdot, u}, {tau_disturbed});
+z = vertcat(h);
+nz = length(z);
 
-s_dot = cse([qdot; inv(B)*( -C*qdot - G + tau_disturbed)]);
+% dinamica
+q_dotdot = inv(B)*(-C*qdot - G + tau);
 
-% parametri integrazione
-t0 = t(1);
-tf = t(end);
-dt = (tf-t0)./(length(t)-1);
-Nd = length(t0:dt:tf);
+% forma di stato
+s_dot = cse([qdot; q_dotdot]); % cse ("common sub-expression elimination")
+s_dot_fun = casadi.Function('sdot', {s, tau}, {s_dot});
 
-% condizioni iniziali
-q0 = full(q_des_fun(0));
-q0_dot = zeros(nj, 1); %full(q_d_des_fun(0)).*0;
-s0 = [q0; q0_dot];
 
-% integrazione con Runge-Kutta
-% aggiungo una perturbazione sull end-effector
-u_num = zeros(6, Nd);
-u_num(:, floor(Nd/2):floor(Nd/2)+20) = repmat([0;0;50;0;0;0], 1, 21);
-sol = RK4(s, u, s_dot, dt, tf, s0, t0, u_num, 't_expr', t_sym, 'NstepsInterval', 2);
+% integrazione della dinamica (1 passo di integrazione) con Runge-Kutta
+s_next = RK4_step(s, tau, s_dot_fun, h);
+
+% vincoli nonlineari (path constraints)
+T0E = T0E_fun(q);
+R0E = T0E(1:3, 1:3);
+d0E = T0E(1:3, 4);
+[nT, thetaT] = rotToAxisAngle(R0E(1:3, 1:3));
+beta_0E = axisAngleToQuat(thetaT, nT);
+g_path = vertcat(beta_0E(:), d0E) - vertcat(beta_path(:), d_path); % terna E-E sul path
+
+
+% costruisco funzioni
+s_next_fun = casadi.Function('dyn_int', {s, tau, h}, {s_next});
+g_path_fun = casadi.Function('g', {s, beta_path, d_path}, {g_path});
+
+ng = nj*2+7;
+
+%% costruzione del problema (discretizzazione dinamica sull'orizzonte temporale)
+
+q_guess = qsol(:, 1); % inizializzo coi risultati della CLICK
+q_dot_guess = q_guess.*0;
+
+q_lb = -ones(nj, 1).*pi;
+q_ub = +ones(nj, 1).*pi;
+
+q_dot_lb = -pi/6; % rad/s
+q_dot_ub = +pi/6; % rad/s
+
+S_lb = [q_lb; q_dot_lb];
+S_ub = [q_ub; q_dot_ub];
+
+S_guess = [q_guess; q_dot_guess];
+S_0 = S_guess;
+S_1 = S_0; % passo precedente
+
+
+tau_ub = linspace(200, 100, nj);
+tau_lb = -tau_ub;
+tau_guess = zeros(nj, 1);
+
+z_guess = 1e-2;
+z_lb = 1e-6;
+z_ub = 1;
+
+
+X = cell(1, N-1);
+X_guess = zeros(nx+nu+nz, N-1);
+X_lb = zeros(nx+nu+nz, N-1);
+X_ub = zeros(nx+nu+nz, N-1);
+
+g = cell(1, N-1);
+g_lb = zeros(ng, N-1);
+g_ub = zeros(ng, N-1);
+
+for k = 1:N-1
+    
+    S = casadi.MX.sym('s', nx, 1);
+    U = casadi.MX.sym('u', nu, 1);
+    Z = casadi.MX.sym('z', nz, 1);
+    
+    X{k} = [S; U; Z];
+    
+    % vincolo dinamica
+    g_dyn = S - s_next_fun(S_1, U, Z(1));
+    
+    % vincolo path
+    g_path = g_path_fun(S, beta_num(:, k+1), d_num(:, k+1));
+    
+    % vincolo k-esimo passo di integrazione
+    g{k}  = [g_dyn; g_path];
+    
+    % inital guess e bound
+    X_guess(:, k) = [S_guess; tau_guess; z_guess];
+    X_lb(:, k) = [S_guess; tau_guess; z_guess];
+    X_ub(:, k) = [S_guess; tau_guess; z_guess];
+    S_1 = S; % passo precedente
+end
+
+cost = Z'*Z;
+
+%% costruzione problema ed interfacciamento con IPOPT
+prob = struct('x', vertcat(X{:}), 'f', cost, 'g', vertcat(g{:}));
+          
+opts = struct;
+opts.ipopt.max_iter = 5000;
+opts.ipopt.print_level = 5;
+
+solver = casadi.nlpsol('solver', 'ipopt', prob, opts);
+
+%% lancio ottimizzazione
+sol = solver('x0', X_guess(:), 'lbx', X_lb(:), 'ubx', X_ub(:), 'lbg', g_lb(:), 'ubg', g_ub(:));
 
 %% grafica
 T0E_num = full(T0E_fun(q0));

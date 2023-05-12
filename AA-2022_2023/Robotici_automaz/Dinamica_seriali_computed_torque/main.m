@@ -3,7 +3,6 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex'); 
 set(0,'defaultTextInterpreter','latex');
 
-addpath(genpath('../Casadi'));
 addpath(genpath('../Data'));
 addpath(genpath('utils'));
 
@@ -80,8 +79,8 @@ s = [q; qdot];
 
 % dinamica sistema
 wEE = [200;0;0;0;0;0]; % wrench end-effector
-tau = -linspace(2, 0.6, nj)'.*qdot; % smorzamento
-tau = tau + Jac'*wEE;
+tau = -0*linspace(2, 0.6, nj)'.*qdot; % smorzamento
+tau = tau;% + Jac'*wEE;
 
 q_dotdot = inv(B)*(-C*qdot - G + tau);
 s_dot = [qdot; q_dotdot];
@@ -99,6 +98,11 @@ s0 = [q0; q0_dot];
 % integrazione con Runge-Kutta
 sol = RK4(s, [], s_dot, dt, tf, s0, t0, []);
 
+% example with built-in matlab integrators (remember to use t_num of this output!)
+% s_dot_fun = casadi.Function('sdot', {s}, {s_dot});
+% [t_num, sol] = ode15s(@(t, x) full(s_dot_fun(x)), [t0 tf], s0);
+% sol = sol';
+
 %% grafica
 T0E_num = full(T0E_fun(q0));
 Tj_num = cell(nj, 1);
@@ -113,7 +117,7 @@ xlabel('x')
 ylabel('y')
 zlabel('z')
 
-set(gca, 'zlim', [-1.5 1.5]);
+set(gca, 'zlim', [-0.5 1.5]);
 set(gca, 'xlim', [-1.5 1.5]);
 set(gca, 'ylim', [-1.5 1.5]);
 set(gca, 'box', 'on')
@@ -185,7 +189,7 @@ T_num = full(T_fun(qsol, qsol_dot));
 U_expr = 0;
 for j = 1:nj
     pcj = Toffset0*T0j{j}*[cg_list(:, j);1];
-    U_expr = U_expr - mass_list(j).*[0,0,-9.81]*pcj(1:3);
+    U_expr = U_expr - mass_list(j).*[0, 0, -9.81]*pcj(1:3);
 end
 U_fun = casadi.Function('U', {q}, {U_expr});
 U_num = full(U_fun(qsol));

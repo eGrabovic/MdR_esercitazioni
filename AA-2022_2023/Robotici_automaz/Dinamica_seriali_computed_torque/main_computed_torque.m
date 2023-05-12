@@ -51,7 +51,6 @@ cg_list = [
 
 cg_list = cg_list(:, 1:nj); % centro di massa w.r.t. to Oj (in {Sj})
 
-
 %% calcolo cinematica
 import casadi.*
 q = MX.sym('q', nj, 1);  % symbolic variables initialization
@@ -122,7 +121,7 @@ tau = B*(q_dd_des - Kv*(qdot - q_d_des) - Kp*(q - q_des)) + C*qdot + G;
 
 tau_disturbed = B*(q_dd_des - Kv*(qdot - q_d_des) - Kp*(q - q_des)) + C*qdot + G + Jac'*u;
 
-tau_fun = casadi.Function('tau', {t_sym, q, qdot, u}, {tau_disturbed});
+tau_fun = casadi.Function('tau', {t_sym, q, qdot}, {tau});
 
 s_dot = cse([qdot; inv(B)*( -C*qdot - G + tau_disturbed)]);
 

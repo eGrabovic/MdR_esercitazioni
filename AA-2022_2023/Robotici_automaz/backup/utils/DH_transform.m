@@ -1,7 +1,9 @@
-function [T] = DH_transform(DH_par, q, Jtype)
+function T = DH_transform(DH_par, q, Jtype)
+% T = DH_transform(DH_par, q, Jtype)
 %
-% [a, alpha, d, theta]
-%
+% - DH_par: [a, alpha, d, theta] row of DH table
+% - q: joint value
+% - Jtype: joint type 'P' or 'R'
 
 % extracting DH parameters
 a = DH_par(1);
@@ -25,6 +27,5 @@ T = [cth, -calf*sth,  salf*sth,    a*cth;...
     sth,  calf*cth, -salf*cth,    a*sth;...
     0,      salf,      calf,        d;...
     0,         0,         0,        1];
-
 
 end
