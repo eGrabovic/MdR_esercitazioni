@@ -20,8 +20,8 @@ J = eye(3);
 J(1, 1) = 0.002*J(1,1);  % inerzia asse X (inerzia minore)
 J(2, 2) = 0.009*J(2,2);  % inerzia asse Y (inerzia maggiore)
 J(3, 3) = 0.006*J(3,3);  % inerzia asse Z (asse intermedio)
-% J(1, 3) = 1e-5;   % piccola perturbazione al tensore di inerzia
-% J(3, 1) = 1e-5;
+J(1, 3) = 1e-5;   % piccola perturbazione al tensore di inerzia
+J(3, 1) = 1e-5;
 
 % postura iniziale (orientazione)
 q0 = [1;0;0;0];
@@ -107,7 +107,7 @@ G = RpTohomogeneous(R, d);
 for i = 1:length(q_num)
    R = quatToRot(q_num(:, i)); 
    transform.Matrix = RpTohomogeneous(R, d);
-%    pause(0.02)
+   pause(0.005)
     drawnow
 end
 

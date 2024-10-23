@@ -86,7 +86,7 @@ for j = 1:nj
     parent = transforms{j};
     T = T*Tj{j};
     transforms{j}.Matrix = T;
-    P = rigidInverse(Tj{j});
+    P = rigidInverse(Tj{j}); % O_i-1O_i vector
     P = P(1:3, 4);
     
     
@@ -97,17 +97,22 @@ for j = 1:nj
         surf(jointX, jointY, jointZ, 'facecolor', 'r', 'edgecolor', 'none', 'parent', parentPrev);
         fill3(jointX(1,:), jointY(1,:),  jointZ(1,:), 'r', 'parent', parentPrev);
         fill3(jointX(2,:), jointY(2,:),  jointZ(2,:), 'r', 'parent', parentPrev);
+        
+        % build link primitive
         [linkX, linkY, linkZ] = createCylinder(j_R/1.75, norm(P), 0, (P)./norm(P),0); % link primitive
         
     else
         [ptsP, faces] = createParallelepiped(j_R*2, [j_len*1.5 j_len*1.5], [0;0;1], blist(j));
+        [ptsP_mobile, faces_mobile] = createParallelepiped(j_R*2*0.5, [j_len*1.5*3 j_len*1.5*0], [0;0;1], blist(j));
         patch('faces', faces, 'vertices', ptsP.',  'facecolor', 'green', 'Parent', parentPrev);
+        patch('faces', faces_mobile, 'vertices', ptsP_mobile.',  'facecolor', 'green', 'Parent', parent);
+        
+         % build link primitive
         [linkX, linkY, linkZ] = createCylinder(j_R/1.75, j_len*10, 0, (P)./norm(P),0); % link primitive
         
         
     end
     % plot link
-    
     surf(linkX, linkY, linkZ, 'facecolor', 'b', 'edgecolor', 'none', 'parent', parent);
     fill3(linkX(1,:), linkY(1,:),  linkZ(1,:), 'b', 'parent', parent);
     fill3(linkX(2,:), linkY(2,:),  linkZ(2,:), 'b', 'parent', parent);

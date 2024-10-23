@@ -27,4 +27,5 @@ transform.Matrix = G0;
 % plot object graphics inside the transform 
 [Faces, Vertices] = stlread('body.STL'); % read mesh file (note we overloaded the built-in matlab "stlread" function with another one inside "Functions" folder)
 Vertices = Vertices+[-4,-0.75,-3+0.41]; % reposition the vertices to make the graphics center w.r.t. G
-patch('Faces', Faces, 'Vertices', Vertices, 'edgecolor', 'k', 'faceColor', 'r', 'parent', transform);
+patch('Faces', Faces, 'Vertices', Vertices, 'edgecolor', 'none', 'faceColor', 'r', 'parent', transform);
+light

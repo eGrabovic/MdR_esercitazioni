@@ -18,6 +18,8 @@ end
 
 O_0n = T0j{n}(1:3, 4);
 cl = class(T0j{1});
+
+%%%%%
 Jac = zeros(6, length(T0j), cl);
 
 

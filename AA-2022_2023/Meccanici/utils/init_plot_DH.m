@@ -1,4 +1,4 @@
-function transforms = init_plot_DH(Tj, blist, Jtype_list, options)
+function [transforms, ax] = init_plot_DH(Tj, blist, Jtype_list, options)
 %
 %
 %
@@ -11,6 +11,8 @@ arguments
     options.joint_r = 0.2;
     options.T0 = eye(4);
     options.TE = eye(4);
+    options.parent = [];
+    options.label = [];
 end
 
     function [ptX, ptY, ptZ] = createCylinder(r, lentop, lenbot, axis, axialOff)
@@ -34,7 +36,7 @@ end
         
     end
 
-    function [points, faces] = createParallelepiped(edge, len, axialOff)
+    function [points, faces] = createParallelepiped(edge, len, axis, axialOff)
         
         a = edge;
         if length(len) == 2
@@ -47,13 +49,22 @@ end
         P1 = [a/2;-a/2;-h1]; P2 = [a/2;a/2;-h1]; P3 = [a/2;a/2;h2]; P4 = [a/2;-a/2;h2];
         P5 = [-a/2;a/2;-h1]; P6 = [-a/2;a/2;h2]; P7 = [-a/2;-a/2;-h1]; P8 = [-a/2;-a/2;h2];
         points = [P1,P2,P3,P4,P5,P6,P7,P8] - [0; 0; axialOff];
+        theta = acos(axis(3));
+        phi = atan2(axis(1), axis(2));
+        R = rotZ(-phi)*rotX(-theta);
+        points = R*points;
         faces = [1,2,3,4;2,5,6,3; 3,6,8,4; 8,6,5,7; 1,4,8,7; 1,7,5,2];
         
     end
 
-figure; hold on; axis equal;
-
-ax = gca;  % get current axes
+if isempty(options.parent)
+    figure('color', 'w', 'units', 'normalized', 'outerposition', [0 0 1 1]);
+    hold on;
+    axis equal;
+    ax = gca;  % get current axes 
+else
+    ax = options.parent;
+end
 
 nj = length(Tj);
 
@@ -66,7 +77,7 @@ transform0.Matrix = options.T0;
 parent = transform0;
 
 % plot base frame
-plotFrame(eye(4), 'parent', parent, 'label', 'B', 'scale', 0.3);
+plotFrame(eye(4), 'parent', parent, 'label', sprintf('base%s', options.label), 'scale', 0.15);
 
 for j = 1:nj
     
@@ -89,7 +100,7 @@ for j = 1:nj
         [linkX, linkY, linkZ] = createCylinder(j_R/1.75, norm(P), 0, (P)./norm(P),0); % link primitive
         
     else
-        [ptsP, faces] = createParallelepiped(j_R*2, [j_len*1.5 j_len*1.5], blist(j));
+        [ptsP, faces] = createParallelepiped(j_R*2, [j_len*1.5 j_len*1.5], [0;0;1], blist(j));
         patch('faces', faces, 'vertices', ptsP.',  'facecolor', 'green', 'Parent', parentPrev);
         [linkX, linkY, linkZ] = createCylinder(j_R/1.75, j_len*10, 0, (P)./norm(P),0); % link primitive
         
@@ -105,11 +116,11 @@ transforms{end+1} = hgtransform('parent', parent);
 transforms{end}.Matrix = options.TE;
 
 % plot end effector
-[EEX, EEY, EEZ] = createCylinder(j_R/2, 0, j_len, [0;0;1], 0);
+[EEX, EEY, EEZ] = createCylinder(j_R/2, j_len, j_len, [0;0;1], 0);
 
 surf(EEX, EEY, EEZ, 'facecolor', '#4DBEEE', 'edgecolor', 'none', 'parent', transforms{end});
 fill3(EEX(1,:), EEY(1,:), EEZ(1,:), EEZ(1,:).*0, 'facecolor', '#4DBEEE', 'parent', transforms{end});
 fill3(EEX(2,:), EEY(2,:), EEZ(2,:), EEZ(1,:).*0, 'facecolor', '#4DBEEE', 'parent', transforms{end});
 
-plotFrame(eye(4), 'parent', transforms{end}, 'scale', 0.1, 'label', 'EE')
+plotFrame(eye(4), 'parent', transforms{end}, 'scale', 0.1, 'label', sprintf('EE%s', options.label))
 end
